@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Encrypted Chat</title>
+
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='style.css') }}"
+>
+
+</head>
+<body>
+
+<div class="topbar">
+
+    <div class="user-info">
+
+        <h2>
+            {{ username }}
+        </h2>
+
+        <span>
+            Secure encrypted local messaging
+        </span>
+
+    </div>
+
+    <a class="logout" href="/logout">
+        Logout
+    </a>
+
+</div>
+
+<div class="container">
+
+    <div class="users">
+
+        <h3>Online Users</h3>
+
+        <div id="userList"></div>
+
+    </div>
+
+    <div class="chat-section">
+
+        <div class="chat-header" id="title">
+            Select User
+        </div>
+
+        <div id="chat"></div>
+
+        <div class="input-area">
+
+            <input
+                id="message"
+                placeholder="Type a message..."
+            >
+
+            <button onclick="sendMessage()">
+                Send
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+const CURRENT_USER =
+    "{{ username }}";
+
+</script>
+
+<script
+    src="{{ url_for('static', filename='script.js') }}"
+></script>
+
+</body>
+</html>
