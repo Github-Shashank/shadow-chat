@@ -2,10 +2,16 @@ const chats = {};
 
 let selectedUser = null;
 
-const socket =
-    new WebSocket(
-        "ws://" + location.host + "/ws"
-    );
+const protocol =
+
+    location.protocol === "https:"
+    ? "wss://"
+    : "ws://";
+
+const socket = new WebSocket(
+
+    protocol + location.host + "/ws"
+);
 
 function getKey(name){
 

@@ -7,7 +7,12 @@ from websocket.socket_handler import register_socket
 
 app = Flask(__name__)
 
-app.secret_key = "secret123"
+import os
+
+app.secret_key = os.environ.get(
+    "SECRET_KEY",
+    "dev-secret-key"
+)
 
 sock = Sock(app)
 
@@ -22,6 +27,5 @@ if __name__ == "__main__":
 
     app.run(
         host="0.0.0.0",
-        port=5000,
-        debug=True
+        port=int(os.environ.get("PORT", 5000))
     )
