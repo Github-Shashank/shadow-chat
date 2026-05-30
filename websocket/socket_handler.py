@@ -65,11 +65,20 @@ def register_socket(sock):
 
         # SEND OLD CHATS
 
+
+        user_chats = {}
+
+        for room, messages in chats.items():
+
+            if username in room.split("-"):
+
+                user_chats[room] = messages
+
         ws.send(json.dumps({
 
             "type": "history",
 
-            "chats": chats
+            "chats": user_chats
         }))
 
         while True:
