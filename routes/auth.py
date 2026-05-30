@@ -5,6 +5,7 @@ from flask import session
 from flask import render_template
 
 import json
+import bcrypt
 
 auth_bp = Blueprint(
     "auth",
@@ -29,7 +30,10 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        if username in users and users[username] == password:
+        if username in users and bcrypt.checkpw(
+            password.encode(),
+            users[username].encode()
+        ):
 
             session["user"] = username
 
@@ -50,7 +54,12 @@ def signup():
         if username in users:
             return "User already exists"
 
-        users[username] = password
+        hashed_password = bcrypt.hashpw(
+            password.encode(),
+            bcrypt.gensalt()
+        ).decode()
+
+        users[username] = hashed_password
 
         with open("users.json", "w") as f:
             json.dump(users, f)

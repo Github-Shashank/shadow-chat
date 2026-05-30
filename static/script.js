@@ -163,7 +163,9 @@ function renderUsers(users){
                 onclick="selectUser('${user}')"
                 id="${user}"
             >
+
                 ${user}
+
             </div>
         `;
     });
@@ -180,8 +182,7 @@ function selectUser(user){
         .classList.add("active");
 
     document.getElementById("title")
-        .innerText =
-        "Chat with " + user;
+        .innerText = user;
 
     renderChat();
 }
@@ -256,3 +257,23 @@ document
         }
     }
 );
+
+document
+.getElementById("mobileUserSelect")
+.addEventListener(
+    "change",
+    function(){
+
+        if(this.value){
+
+            selectUser(this.value);
+        }
+    }
+);
+
+function toggleUsers(){
+
+    document
+    .querySelector(".users")
+    .classList.toggle("show-users");
+}
