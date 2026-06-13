@@ -3,7 +3,7 @@
 
 <head>
 
-    <title>Encrypted Chat</title>
+    <title>Shadow Chat</title>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
@@ -27,9 +27,13 @@
 
         </div>
 
-        <a class="logout" href="/logout">
-            Logout
-        </a>
+        <!-- H2/L4 FIX: Logout via POST form instead of GET link -->
+        <form method="POST" action="{{ url_for('auth.logout') }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="logout">
+                Logout
+            </button>
+        </form>
 
     </div>
 
@@ -56,7 +60,7 @@
 
             <div class="input-area">
 
-                <input id="message" placeholder="Type a message...">
+                <input id="message" placeholder="Type a message..." autocomplete="off">
 
                 <button onclick="sendMessage()">
                     Send
@@ -69,10 +73,7 @@
     </div>
 
     <script>
-
-        const CURRENT_USER =
-            "{{ username }}";
-
+        const CURRENT_USER = "{{ username }}";
     </script>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>

@@ -19,17 +19,22 @@
 
             <h2>Login</h2>
 
+            <!-- H1 FIX: CSRF token in form -->
             <form method="POST">
-
-                <input name="username" placeholder="Username" required>
-
-                <input type="password" name="password" placeholder="Password" required>
-
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input name="username" placeholder="Username" required maxlength="30">
+                <input type="password" name="password" placeholder="Password" required maxlength="128">
                 <button>
                     Login
                 </button>
-
             </form>
+
+            <!-- H6 FIX: Generic error display -->
+            {% if error %}
+            <p style="color: #ff003c; margin-top: 12px; font-size: 14px;">
+                {{ error }}
+            </p>
+            {% endif %}
 
             <br>
 
