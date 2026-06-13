@@ -1,114 +1,102 @@
 # Shadow Chat
 
-A modular real-time encrypted chat application built using Python, Flask, and WebSockets.
+A modular real-time encrypted chat application built using Python, Flask, and WebSockets with **end-to-end AES-256-GCM encryption**.
 
 ## Features
 
-- Real-time messaging
-- User authentication
-- Password hashing using bcrypt
-- Encrypted message transfer
+- Real-time messaging via WebSockets
+- User authentication with bcrypt password hashing
+- **End-to-end AES-256-GCM encryption** (WebCrypto API)
+- CSRF protection on all forms
+- Rate limiting on authentication endpoints
+- Secure session management with expiry
+- Security headers (CSP, HSTS, X-Frame-Options)
 - Persistent message storage
 - Online user system
 - Mobile responsive UI
-- WebSocket communication
-- Cloud deployment support
+
+## Security Features
+
+| Feature | Implementation |
+|---------|---------------|
+| **Encryption** | AES-256-GCM via WebCrypto API with PBKDF2 key derivation |
+| **CSRF** | Flask-WTF CSRFProtect on all forms |
+| **Rate Limiting** | Flask-Limiter on auth endpoints |
+| **Session Security** | HttpOnly, Secure, SameSite cookies with 30-min timeout |
+| **Password Policy** | Min 8 chars, uppercase, lowercase, digit required |
+| **Security Headers** | CSP, X-Frame-Options, HSTS, X-Content-Type-Options |
+| **XSS Prevention** | Safe DOM construction (no innerHTML with user data) |
+| **Auth Spoofing** | Server-side session identity (never trusts client sender) |
 
 ## Tech Stack
 
-- Python
-- Flask
-- Flask-Sock
-- WebSockets
-- HTML/CSS/JavaScript
-- bcrypt
+- Python / Flask
+- Flask-Sock (WebSockets)
+- Flask-WTF (CSRF Protection)
+- Flask-Limiter (Rate Limiting)
+- bcrypt (Password Hashing)
+- WebCrypto API (AES-256-GCM Encryption)
+- HTML / CSS / JavaScript
 
 ## Installation
 
-Clone repository:
+### 1. Clone & Setup
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/shadow-chat.git
 cd shadow-chat
-````
-
-Create virtual environment:
-
-```bash
 python -m venv venv
-```
-
-Activate virtual environment:
-
-### Windows
-
-```bash
-venv\Scripts\activate
-```
-
-### Linux/Mac
-
-```bash
-source venv/bin/activate
-```
-
-Install dependencies:
-
-```bash
+source venv/bin/activate   # Linux/Mac
 pip install -r requirements.txt
 ```
 
-Run application:
+### 2. Configure Environment
 
 ```bash
+cp .env.example .env
+```
+
+Edit `.env` and set a secure `SECRET_KEY`:
+
+```bash
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
+
+### 3. Run
+
+```bash
+# Development
 python app.py
+
+# Production
+gunicorn app:app
 ```
 
-Open browser:
-
-```text
-http://127.0.0.1:5000
-```
-
-## Deployment
-
-This project is deployable on platforms like:
-
-* Render
-* Railway
+> **Note:** `SECRET_KEY` environment variable is **required**. The app will not start without it.
 
 ## Project Structure
 
-```text
-encrypted_chat/
-│
-├── app.py
-├── requirements.txt
-├── Procfile
-├── users.json
-├── messages.json
-│
-├── routes/
-├── websocket/
-├── templates/
-└── static/
 ```
-
-## Screenshots
-
-Add screenshots here.
-
-## Future Improvements
-
-* End-to-end encryption
-* Group chats
-* File sharing
-* Voice messages
-* Database integration
-* Push notifications
-* Read receipts
-* Message search
+shadow-chat/
+├── app.py                  # Flask app entry point
+├── routes/
+│   ├── auth.py             # Login / Signup / Logout
+│   └── chat.py             # Chat page route
+├── websocket/
+│   └── socket_handler.py   # WebSocket message handling
+├── static/
+│   ├── script.js           # Client-side JS (WebCrypto encryption)
+│   ├── style.css           # Styles
+├── templates/
+│   ├── chat.html           # Chat page
+│   ├── login.html          # Login page
+│   └── signup.html         # Signup page
+├── requirements.txt        # Python dependencies
+├── Procfile                # Deployment config
+├── .env.example            # Environment template
+└── README.md
+```
 
 ## License
 
-MIT License
+MIT

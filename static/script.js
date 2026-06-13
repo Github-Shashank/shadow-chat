@@ -1,285 +1,263 @@
 const chats = {};
-
 let selectedUser = null;
 
 const protocol =
+    location.protocol === "https:" ? "wss://" : "ws://";
 
-    location.protocol === "https:"
-    ? "wss://"
-    : "ws://";
+const socket = new WebSocket(protocol + location.host + "/ws");
 
-const socket = new WebSocket(
+// ── C3 FIX: Real AES-GCM encryption via WebCrypto API ──
 
-    protocol + location.host + "/ws"
-);
+async function deriveKey(user1, user2) {
+    const enc = new TextEncoder();
+    const pair = [user1, user2].sort().join("-");
 
-function getKey(name){
+    const keyMaterial = await crypto.subtle.importKey(
+        "raw",
+        enc.encode(pair),
+        "PBKDF2",
+        false,
+        ["deriveKey"]
+    );
 
-    let total = 0;
-
-    for(let i=0;i<name.length;i++){
-
-        total += name.charCodeAt(i);
-    }
-
-    return total % 20 + 1;
+    return crypto.subtle.deriveKey(
+        {
+            name: "PBKDF2",
+            salt: enc.encode("shadow-chat-v2-salt"),
+            iterations: 100000,
+            hash: "SHA-256",
+        },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+    );
 }
 
-function encrypt(text, key){
+async function encryptMessage(text, user1, user2) {
+    const key = await deriveKey(user1, user2);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const enc = new TextEncoder();
 
-    let result = "";
+    const encrypted = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv: iv },
+        key,
+        enc.encode(text)
+    );
 
-    for(let i=0;i<text.length;i++){
+    return {
+        data: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
+        iv: btoa(String.fromCharCode(...iv)),
+    };
+}
 
-        result += String.fromCharCode(
-            text.charCodeAt(i) ^ key
+async function decryptMessage(encryptedData, ivBase64, user1, user2) {
+    try {
+        const key = await deriveKey(user1, user2);
+        const iv = Uint8Array.from(atob(ivBase64), (c) =>
+            c.charCodeAt(0)
         );
-    }
-
-    return btoa(result);
-}
-
-function decrypt(text, key){
-
-    let decoded = atob(text);
-
-    let result = "";
-
-    for(let i=0;i<decoded.length;i++){
-
-        result += String.fromCharCode(
-            decoded.charCodeAt(i) ^ key
+        const data = Uint8Array.from(atob(encryptedData), (c) =>
+            c.charCodeAt(0)
         );
+
+        const decrypted = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: iv },
+            key,
+            data
+        );
+
+        return new TextDecoder().decode(decrypted);
+    } catch {
+        return "[decryption failed]";
     }
-
-    return result;
 }
 
-function room(a,b){
-
-    return [a,b].sort().join("-");
+function room(a, b) {
+    return [a, b].sort().join("-");
 }
 
-socket.onmessage = function(event){
+socket.onmessage = function (event) {
+    const data = JSON.parse(event.data);
 
-    const data =
-        JSON.parse(event.data);
-
-    // ONLINE USERS
-
-    if(data.type === "users"){
-
+    if (data.type === "users") {
         renderUsers(data.users);
         return;
     }
 
-    // LOAD OLD CHAT HISTORY
-
-    if(data.type === "history"){
-
-        Object.assign(
-            chats,
-            data.chats
-        );
-
+    if (data.type === "history") {
+        Object.assign(chats, data.chats);
         renderChat();
-
         return;
     }
-
-    // NORMAL MESSAGE
 
     saveMessage(data);
 };
 
-function saveMessage(data){
+function saveMessage(data) {
+    const r = room(data.sender, data.receiver);
 
-    const r =
-        room(
-            data.sender,
-            data.receiver
-        );
-
-    if(!chats[r])
-        chats[r] = [];
+    if (!chats[r]) chats[r] = [];
 
     chats[r].push(data);
-
     renderChat();
 }
 
-function sendMessage(){
-
-    if(!selectedUser)
-        return;
-
-    const input =
-        document.getElementById("message");
-
-    const message =
-        input.value.trim();
-
-    if(message === "")
-        return;
-
-    const encrypted =
-        encrypt(
-            message,
-            getKey(selectedUser)
-        );
-
-    const data = {
-
-        type: "message",
-
-        sender: CURRENT_USER,
-
-        receiver: selectedUser,
-
-        encrypted: encrypted
-    };
-
-    socket.send(
-        JSON.stringify(data)
-    );
-
-    saveMessage(data);
-
-    input.value = "";
-}
-
-function renderUsers(users){
-
-    const userList =
-        document.getElementById(
-            "userList"
-        );
-
+// C5 FIX: Safe DOM construction for user list
+function renderUsers(users) {
+    const userList = document.getElementById("userList");
     userList.innerHTML = "";
 
-    users.forEach(user => {
+    users.forEach(function (user) {
+        if (user === CURRENT_USER) return;
 
-        if(user === CURRENT_USER)
-            return;
+        // Build DOM safely — no innerHTML with user data
+        const div = document.createElement("div");
+        div.className = "user";
+        div.id = user;
+        div.textContent = user;
+        div.addEventListener("click", function () {
+            selectUser(user);
+        });
 
-        userList.innerHTML += `
-
-            <div
-                class="user"
-                onclick="selectUser('${user}')"
-                id="${user}"
-            >
-
-                ${user}
-
-            </div>
-        `;
+        userList.appendChild(div);
     });
 }
 
-function selectUser(user){
-
+function selectUser(user) {
     selectedUser = user;
 
-    document.querySelectorAll(".user")
-        .forEach(u => u.classList.remove("active"));
+    document
+        .querySelectorAll(".user")
+        .forEach(function (u) {
+            u.classList.remove("active");
+        });
 
-    document.getElementById(user)
-        .classList.add("active");
+    var el = document.getElementById(user);
+    if (el) el.classList.add("active");
 
-    document.getElementById("title")
-        .innerText = user;
-
+    document.getElementById("title").innerText = user;
     renderChat();
 }
 
-function renderChat(){
-
-    const chat =
-        document.getElementById("chat");
-
+// C4 FIX: Safe DOM construction for chat messages
+async function renderChat() {
+    const chat = document.getElementById("chat");
     chat.innerHTML = "";
 
-    if(!selectedUser)
-        return;
+    if (!selectedUser) return;
 
-    const r =
-        room(
-            CURRENT_USER,
-            selectedUser
-        );
+    const r = room(CURRENT_USER, selectedUser);
 
-    if(!chats[r])
-        return;
+    if (!chats[r]) return;
 
-    chats[r].forEach(msg => {
-
+    for (const msg of chats[r]) {
         let text = "";
 
-        if(msg.receiver === CURRENT_USER){
-
-            text = decrypt(
+        if (msg.iv) {
+            // AES-GCM message (v2)
+            if (msg.receiver === CURRENT_USER) {
+                text = await decryptMessage(
+                    msg.encrypted,
+                    msg.iv,
+                    CURRENT_USER,
+                    msg.sender
+                );
+            } else {
+                text = await decryptMessage(
+                    msg.encrypted,
+                    msg.iv,
+                    CURRENT_USER,
+                    selectedUser
+                );
+            }
+        } else {
+            // Legacy XOR fallback (v1 messages)
+            text = legacyDecrypt(
                 msg.encrypted,
-                getKey(CURRENT_USER)
-            );
-
-        }else{
-
-            text = decrypt(
-                msg.encrypted,
-                getKey(selectedUser)
+                msg.receiver === CURRENT_USER
+                    ? CURRENT_USER
+                    : selectedUser
             );
         }
 
         const type =
-            msg.sender === CURRENT_USER
-            ? "sent"
-            : "received";
+            msg.sender === CURRENT_USER ? "sent" : "received";
 
-        chat.innerHTML += `
+        // Build DOM safely — no innerHTML with message text
+        const div = document.createElement("div");
+        div.className = "message " + type;
+        div.textContent = text;
+        chat.appendChild(div);
+    }
 
-        <div class="message ${type}">
+    chat.scrollTop = chat.scrollHeight;
+}
 
-            ${text}
+// Legacy decrypt for old messages during migration
+function legacyDecrypt(text, name) {
+    let total = 0;
+    for (let i = 0; i < name.length; i++) {
+        total += name.charCodeAt(i);
+    }
+    const key = (total % 20) + 1;
+    const decoded = atob(text);
+    let result = "";
+    for (let i = 0; i < decoded.length; i++) {
+        result += String.fromCharCode(
+            decoded.charCodeAt(i) ^ key
+        );
+    }
+    return result;
+}
 
-        </div>
-        `;
+async function sendMessage() {
+    if (!selectedUser) return;
 
-    });
+    const input = document.getElementById("message");
+    const message = input.value.trim();
 
-    chat.scrollTop =
-        chat.scrollHeight;
+    if (message === "") return;
+
+    // C3 FIX: Use real AES-GCM encryption
+    const { data, iv } = await encryptMessage(
+        message,
+        CURRENT_USER,
+        selectedUser
+    );
+
+    const msgData = {
+        type: "message",
+        sender: CURRENT_USER,
+        receiver: selectedUser,
+        encrypted: data,
+        iv: iv,
+    };
+
+    socket.send(JSON.stringify(msgData));
+    saveMessage(msgData);
+
+    input.value = "";
 }
 
 document
-.getElementById("message")
-.addEventListener(
-    "keypress",
-    function(event){
-
-        if(event.key === "Enter"){
-
+    .getElementById("message")
+    .addEventListener("keypress", function (event) {
+        if (event.key === "Enter") {
             sendMessage();
         }
-    }
-);
+    });
 
 document
-.getElementById("mobileUserSelect")
-.addEventListener(
-    "change",
-    function(){
-
-        if(this.value){
-
+    .getElementById("mobileUserSelect")
+    .addEventListener("change", function () {
+        if (this.value) {
             selectUser(this.value);
         }
-    }
-);
+    });
 
-function toggleUsers(){
-
+function toggleUsers() {
     document
-    .querySelector(".users")
-    .classList.toggle("show-users");
+        .querySelector(".users")
+        .classList.toggle("show-users");
 }

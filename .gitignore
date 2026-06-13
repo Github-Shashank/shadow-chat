@@ -2,6 +2,11 @@ __pycache__/
 *.pyc
 
 venv/
+.env
 
-users.json 
+users.json
 messages.json
+
+# Reports / dev artifacts
+SECURITY_AUDIT_REPORT*
+convert_md_to_pdf.py
